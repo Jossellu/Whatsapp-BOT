@@ -9,11 +9,16 @@ class MessageHandler {
 
       if (this.isGreeting(incomingMessage)) {
         await this.sendWelcomeMessage(fromNumber, message.id, senderInfo);
+        await this.sendWelcomeMenu(fromNumber);
       } else {
         const response = `Echo: ${message.text.body}`;
         await whatsappService.sendMessage(fromNumber, response, message.id);
       }
 
+      await whatsappService.markAsRead(message.id);
+    } else if (message?.type == 'interactive'){
+      const option = message?.interactive?.button_reply?.title.toLowerCase().trim();
+      await this.handleMenuOption(fromNumber, option);
       await whatsappService.markAsRead(message.id);
     }
   }
@@ -28,53 +33,63 @@ class MessageHandler {
   }
 
   async sendWelcomeMessage(to, messageId, senderInfo) {
-    try {
       const name = await this.getSenderName(senderInfo);
       const welcomeMessage = `¡Hola *${name}*! 👋 Bienvenido al Inventario de TII. ¿En qué puedo ayudarte hoy?`;
-      
       // Enviamos el mensaje de bienvenida primero
       await whatsappService.sendMessage(to, welcomeMessage, messageId);
-      
-      // Luego enviamos el menú interactivo
-      await this.sendWelcomeMenu(to);
+  }
+
+  async sendWelcomeMenu(to) {
+    try {
+      const menuMessage = "📋 Menú Principal:";
+      const buttons = [
+        {
+          reply: { // Cambiado a estructura correcta
+            id: 'inventario_dia',
+            title: 'INVENTARIO DEL DIA' 
+          }
+        },
+        {
+          reply: {
+            id: 'inventario_media',
+            title: 'GAMA MEDIA' 
+          }
+        },
+        {
+          reply: {
+            id: 'inventario_alta',
+            title: 'GAMA ALTA' 
+          }
+        }
+      ];
+  
+      await whatsappService.sendInteractiveButtons(to, menuMessage, buttons);
     } catch (error) {
-      console.error("Error al enviar mensaje de bienvenida:", error);
-      // Fallback: enviar mensaje simple si falla el interactivo
+      console.error('Error enviando menú:', error);
+      // Fallback: envía mensaje plano si fallan los botones
       await whatsappService.sendMessage(
         to,
-        "Por favor elige una opción:\n1. INVENTARIO DEL DIA\n2. INVENTARIO GAMA MEDIA\n3. INVENTARIO GAMA ALTA",
-        messageId
+        "Por favor elige:\n1. INVENTARIO DEL DIA\n2. GAMA MEDIA\n3. GAMA ALTA"
       );
     }
   }
 
-  async sendWelcomeMenu(to) {
-    const menuMessage = "Selecciona una opción del menú:";
-    const buttons = [
-      { id: 'option_1', title: 'INVENTARIO DEL DIA' },
-      { id: 'option_2', title: 'INVENTARIO GAMA MEDIA' },
-      { id: 'option_3', title: 'INVENTARIO GAMA ALTA' }
-    ];
-
-    await whatsappService.sendInteractiveButtons(
-      to,
-      menuMessage,
-      buttons,
-      "📋 Menú Principal" // Encabezado opcional
-    );
-  }
-
-  async handleRegularMessage(message) {
-    // Respuesta para mensajes no reconocidos
-    const response = `Recibí tu mensaje: "${message.text.body}".\n\n` + 
-                    "Escribe *HOLA* para ver las opciones disponibles.";
-    
-    await whatsappService.sendMessage(
-      message.from,
-      response,
-      message.id
-    );
+  async handleMenuOption(to, option) {
+    let response;
+    switch(option){
+      case 'INVENTARIO DEL DIA':
+        response = "INVENTARIO DEL DIA";
+        break;
+      case 'GAMA MEDIA':
+        response = "GAMA MEDIA";
+        break;
+      case 'GAMA ALTA':
+        response = "GAMA ALTA";
+        break;
+      default:
+        response = "Lo siento, no entendi tu eleccion, Por favor elige una de las opciones dadas"
+    }
+    await whatsappService.sendMessage(to, response)
   }
 }
-
 export default new MessageHandler();

@@ -14,9 +14,7 @@ class WhatsAppService {
           messaging_product: 'whatsapp',
           to,
           text: { body },
-          context: {
-            message_id: messageId,
-          },
+
         },
       });
     } catch (error) {
@@ -43,29 +41,46 @@ class WhatsAppService {
     }
   }
 
-  async sendInteractiveButtons(to, BodyText, buttons) {
+  async sendInteractiveButtons(to, bodyText, buttons) {
     try {
-      await axios({
+      const payload = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual', // ¡Campo requerido!
+        to: to.replace(/\D/g, ''), // Limpia el número
+        type: 'interactive',
+        interactive: {
+          type: 'button',
+          body: { 
+            text: bodyText.substring(0, 1024) // Limita caracteres
+          },
+          action: {
+            buttons: buttons.slice(0, 3).map(button => ({ // Máx 3 botones
+              type: 'reply',
+              reply: {
+                id: button.reply.id.replace(/\s/g, '_').substring(0, 256), // Formato ID
+                title: button.reply.title.substring(0, 20) // Máx 20 chars
+              }
+            }))
+          }
+        }
+      };
+  
+      const response = await axios({
         method: 'POST',
         url: `https://graph.facebook.com/${config.API_VERSION}/${config.BUSINESS_PHONE}/messages`,
         headers: {
           Authorization: `Bearer ${config.API_TOKEN}`,
+          'Content-Type': 'application/json' // ¡Importante!
         },
-        data: {
-          messaging_product: 'whatsapp',
-          to,
-          type: 'interactive',
-          interactive: {
-            type: 'button',
-            body: { text: BodyText },
-            action: {
-              buttons: buttons
-            }
-          }
-        },
+        data: payload
       });
+      
+      return response.data;
     } catch (error) {
-      console.error(error);
+      console.error('Error al enviar botones:');
+      console.error('Request:', error.config?.data);
+      console.error('Response:', error.response?.data || error.message);
+      throw error;
     }
   }
 
