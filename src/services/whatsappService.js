@@ -22,6 +22,30 @@ class WhatsAppService {
     }
   }
 
+  async sendDocument(to, fileUrl) {
+    try {
+      await axios({
+        method: 'POST',
+        url: `https://graph.facebook.com/${config.API_VERSION}/${config.BUSINESS_PHONE}/messages`,
+        headers: {
+          Authorization: `Bearer ${config.API_TOKEN}`,
+          'Content-Type': 'application/json'
+        },
+        data: {
+          messaging_product: 'whatsapp',
+          to,
+          type: 'document',
+          document: {
+            link: fileUrl,
+            filename: fileUrl.split('/').pop(),
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error enviando documento:', error.response?.data || error.message);
+    }
+  }
+  
   async markAsRead(messageId) {
     try {
       await axios({

@@ -1,12 +1,14 @@
 import whatsappService from './whatsappService.js';
+import { generarExcelFiltrado } from './utils/excelProcessor.js';
 
 class MessageHandler {
   async handleIncomingMessage(message, senderInfo) {
+    // Mueve esta línea fuera del bloque
+    const fromNumber = message.from.slice(0, 2) + message.from.slice(3);
+  
     if (message?.type === "text") {
       const incomingMessage = message.text.body.toLowerCase().trim();
-      // Remove 1 from the position 2 in the from property
-      const fromNumber = message.from.slice(0, 2) + message.from.slice(3);
-
+  
       if (this.isGreeting(incomingMessage)) {
         await this.sendWelcomeMessage(fromNumber, message.id, senderInfo);
         await this.sendWelcomeMenu(fromNumber);
@@ -14,9 +16,10 @@ class MessageHandler {
         const response = `Echo: ${message.text.body}`;
         await whatsappService.sendMessage(fromNumber, response, message.id);
       }
-
+  
       await whatsappService.markAsRead(message.id);
-    } else if (message?.type == 'interactive'){
+  
+    } else if (message?.type == 'interactive') {
       const option = message?.interactive?.button_reply?.title.toLowerCase().trim();
       await this.handleMenuOption(fromNumber, option);
       await whatsappService.markAsRead(message.id);
@@ -76,20 +79,23 @@ class MessageHandler {
 
   async handleMenuOption(to, option) {
     let response;
-    switch(option){
-      case 'INVENTARIO DEL DIA':
-        response = "INVENTARIO DEL DIA";
-        break;
-      case 'GAMA MEDIA':
-        response = "GAMA MEDIA";
-        break;
-      case 'GAMA ALTA':
-        response = "GAMA ALTA";
-        break;
-      default:
-        response = "Lo siento, no entendi tu eleccion, Por favor elige una de las opciones dadas"
+    let fileUrl;
+  
+    try {
+      // Llama al generador según la opción
+      const relativePath = generarExcelFiltrado(option.toUpperCase());
+      fileUrl = `http://localhost:3000${relativePath}`;
+  
+      response = `Aquí está el reporte solicitado: ${option}`;
+      await whatsappService.sendMessage(to, response);
+      await whatsappService.sendDocument(to, fileUrl); // 👈 necesitas implementar esta función si no la tienes
+    } catch (err) {
+      console.error('Error generando archivo:', err);
+      response = "Ocurrió un error generando tu archivo. Intenta más tarde.";
+      await whatsappService.sendMessage(to, response);
     }
-    await whatsappService.sendMessage(to, response)
   }
+  
 }
+
 export default new MessageHandler();
