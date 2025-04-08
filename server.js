@@ -8,9 +8,17 @@
 import express from "express";
 import axios from "axios";
 import 'dotenv/config';
+import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 app.use(express.json());
+// Esto sirve la carpeta 'public' en la ruta '/archivos'
+app.use('/archivos', express.static(path.join(__dirname, 'public')));
 
 const { WEBHOOK_VERIFY_TOKEN, API_TOKEN, BUSINESS_PHONE , API_VERSION, PORT } = process.env;
 

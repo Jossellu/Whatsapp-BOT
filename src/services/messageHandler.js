@@ -3,12 +3,11 @@ import { generarExcelFiltrado } from './utils/excelProcessor.js';
 
 class MessageHandler {
   async handleIncomingMessage(message, senderInfo) {
-    // Mueve esta línea fuera del bloque
     const fromNumber = message.from.slice(0, 2) + message.from.slice(3);
-  
+
     if (message?.type === "text") {
       const incomingMessage = message.text.body.toLowerCase().trim();
-  
+
       if (this.isGreeting(incomingMessage)) {
         await this.sendWelcomeMessage(fromNumber, message.id, senderInfo);
         await this.sendWelcomeMenu(fromNumber);
@@ -16,9 +15,8 @@ class MessageHandler {
         const response = `Echo: ${message.text.body}`;
         await whatsappService.sendMessage(fromNumber, response, message.id);
       }
-  
+
       await whatsappService.markAsRead(message.id);
-  
     } else if (message?.type == 'interactive') {
       const option = message?.interactive?.button_reply?.title.toLowerCase().trim();
       await this.handleMenuOption(fromNumber, option);
@@ -36,10 +34,9 @@ class MessageHandler {
   }
 
   async sendWelcomeMessage(to, messageId, senderInfo) {
-      const name = await this.getSenderName(senderInfo);
-      const welcomeMessage = `¡Hola *${name}*! 👋 Bienvenido al Inventario de TII. ¿En qué puedo ayudarte hoy?`;
-      // Enviamos el mensaje de bienvenida primero
-      await whatsappService.sendMessage(to, welcomeMessage, messageId);
+    const name = await this.getSenderName(senderInfo);
+    const welcomeMessage = `¡Hola *${name}*! 👋 Bienvenido al Inventario de TII. ¿En qué puedo ayudarte hoy?`;
+    await whatsappService.sendMessage(to, welcomeMessage, messageId);
   }
 
   async sendWelcomeMenu(to) {
@@ -47,7 +44,7 @@ class MessageHandler {
       const menuMessage = "📋 Menú Principal:";
       const buttons = [
         {
-          reply: { // Cambiado a estructura correcta
+          reply: {
             id: 'inventario_dia',
             title: 'INVENTARIO DEL DIA' 
           }
@@ -65,11 +62,10 @@ class MessageHandler {
           }
         }
       ];
-  
+
       await whatsappService.sendInteractiveButtons(to, menuMessage, buttons);
     } catch (error) {
       console.error('Error enviando menú:', error);
-      // Fallback: envía mensaje plano si fallan los botones
       await whatsappService.sendMessage(
         to,
         "Por favor elige:\n1. INVENTARIO DEL DIA\n2. GAMA MEDIA\n3. GAMA ALTA"
@@ -80,22 +76,22 @@ class MessageHandler {
   async handleMenuOption(to, option) {
     let response;
     let fileUrl;
-  
+
     try {
-      // Llama al generador según la opción
-      const relativePath = generarExcelFiltrado(option.toUpperCase());
-      fileUrl = `http://localhost:3000${relativePath}`;
-  
+      // Genera el archivo Excel filtrado según la opción
+      const relativePath = await generarExcelFiltrado(option.toUpperCase()); // Asegúrate de que este método regrese la ruta relativa
+      fileUrl = `http://localhost:3000${relativePath}`;  // URL pública
+
       response = `Aquí está el reporte solicitado: ${option}`;
-      await whatsappService.sendMessage(to, response);
-      await whatsappService.sendDocument(to, fileUrl); // 👈 necesitas implementar esta función si no la tienes
+      await whatsappService.sendMessage(to, response);  // Enviar mensaje de texto
+      await whatsappService.sendDocument(to, fileUrl);  // Enviar documento
+
     } catch (err) {
       console.error('Error generando archivo:', err);
       response = "Ocurrió un error generando tu archivo. Intenta más tarde.";
       await whatsappService.sendMessage(to, response);
     }
   }
-  
 }
 
 export default new MessageHandler();
