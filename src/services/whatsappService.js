@@ -1,30 +1,35 @@
+// src/services/whatsappService.js
 import axios from 'axios';
 import config from '../config/env.js';
 
 class WhatsAppService {
-  async sendMessage(to, body, messageId) {
+  async sendMessage(to, message, messageId = null) {
     try {
-      await axios({
-        method: 'POST',
-        url: `https://graph.facebook.com/${config.API_VERSION}/${config.BUSINESS_PHONE}/messages`,
-        headers: {
-          Authorization: `Bearer ${config.API_TOKEN}`,
-        },
-        data: {
+      await axios.post(
+        `https://graph.facebook.com/${config.API_VERSION}/${config.BUSINESS_PHONE}/messages`,
+        {
           messaging_product: 'whatsapp',
-          to,
-          text: { body },
-
+          to: to,
+          text: { body: message },
+          ...(messageId && { context: { message_id: messageId } }),
+          type: 'text'
         },
-      });
+        {
+          headers: {
+            Authorization: `Bearer ${config.API_TOKEN}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error sending message:', error.response?.data || error.message);
     }
   }
+  
 
-  async sendDocument(to, fileUrl) {
+  async sendImage(to, imageUrl) {
     try {
-      await axios({
+      const response = await axios({
         method: 'POST',
         url: `https://graph.facebook.com/${config.API_VERSION}/${config.BUSINESS_PHONE}/messages`,
         headers: {
@@ -33,19 +38,26 @@ class WhatsAppService {
         },
         data: {
           messaging_product: 'whatsapp',
-          to,
-          type: 'document',
-          document: {
-            link: fileUrl,
-            filename: fileUrl.split('/').pop(),
+          recipient_type: 'individual',
+          to: to,
+          type: 'image',
+          image: {
+            link: imageUrl
           }
         }
       });
+      console.log('Imagen enviada con éxito:', response.data);
+      return response.data;
     } catch (error) {
-      console.error('Error enviando documento:', error.response?.data || error.message);
+      console.error('Error enviando imagen:');
+      console.error('URL intentada:', imageUrl);
+      console.error('Error detallado:', error.response?.data || error.message);
+      throw error;
     }
   }
   
+  
+
   async markAsRead(messageId) {
     try {
       await axios({
@@ -69,20 +81,20 @@ class WhatsAppService {
     try {
       const payload = {
         messaging_product: 'whatsapp',
-        recipient_type: 'individual', // ¡Campo requerido!
-        to: to.replace(/\D/g, ''), // Limpia el número
+        recipient_type: 'individual',
+        to: to.replace(/\D/g, ''),
         type: 'interactive',
         interactive: {
           type: 'button',
           body: { 
-            text: bodyText.substring(0, 1024) // Limita caracteres
+            text: bodyText.substring(0, 1024)
           },
           action: {
-            buttons: buttons.slice(0, 3).map(button => ({ // Máx 3 botones
+            buttons: buttons.slice(0, 3).map(button => ({
               type: 'reply',
               reply: {
-                id: button.reply.id.replace(/\s/g, '_').substring(0, 256), // Formato ID
-                title: button.reply.title.substring(0, 20) // Máx 20 chars
+                id: button.reply.id.replace(/\s/g, '_').substring(0, 256),
+                title: button.reply.title.substring(0, 20)
               }
             }))
           }
@@ -94,7 +106,7 @@ class WhatsAppService {
         url: `https://graph.facebook.com/${config.API_VERSION}/${config.BUSINESS_PHONE}/messages`,
         headers: {
           Authorization: `Bearer ${config.API_TOKEN}`,
-          'Content-Type': 'application/json' // ¡Importante!
+          'Content-Type': 'application/json'
         },
         data: payload
       });
@@ -107,7 +119,6 @@ class WhatsAppService {
       throw error;
     }
   }
-
 }
 
 export default new WhatsAppService();

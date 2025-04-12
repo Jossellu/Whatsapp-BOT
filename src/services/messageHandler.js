@@ -1,5 +1,9 @@
 import whatsappService from './whatsappService.js';
-import { generarExcelFiltrado } from './utils/excelProcessor.js';
+import config from '../config/env.js';
+import { exec } from 'child_process';
+import path from 'path';
+import fs from 'fs';
+import axios from 'axios';
 
 class MessageHandler {
   async handleIncomingMessage(message, senderInfo) {
@@ -12,14 +16,13 @@ class MessageHandler {
         await this.sendWelcomeMessage(fromNumber, message.id, senderInfo);
         await this.sendWelcomeMenu(fromNumber);
       } else {
-        const response = `Echo: ${message.text.body}`;
-        await whatsappService.sendMessage(fromNumber, response, message.id);
+        await this.handleUserText(fromNumber, incomingMessage, message.id);
       }
 
       await whatsappService.markAsRead(message.id);
-    } else if (message?.type == 'interactive') {
+    } else if (message?.type === 'interactive') {
       const option = message?.interactive?.button_reply?.title.toLowerCase().trim();
-      await this.handleMenuOption(fromNumber, option);
+      await this.handleMenuOption(fromNumber, option, message.id);
       await whatsappService.markAsRead(message.id);
     }
   }
@@ -43,53 +46,83 @@ class MessageHandler {
     try {
       const menuMessage = "📋 Menú Principal:";
       const buttons = [
-        {
-          reply: {
-            id: 'inventario_dia',
-            title: 'INVENTARIO DEL DIA' 
-          }
-        },
-        {
-          reply: {
-            id: 'inventario_media',
-            title: 'GAMA MEDIA' 
-          }
-        },
-        {
-          reply: {
-            id: 'inventario_alta',
-            title: 'GAMA ALTA' 
-          }
-        }
+        { reply: { id: 'gama_baja', title: 'INVENTARIO GAMA BAJA' } },
+        { reply: { id: 'gama_alta', title: 'INVENTARIO GAMA ALTA' } },
+        { reply: { id: 'buscar_modelo', title: 'BUSCAR MODELO' } }
       ];
-
       await whatsappService.sendInteractiveButtons(to, menuMessage, buttons);
     } catch (error) {
       console.error('Error enviando menú:', error);
       await whatsappService.sendMessage(
         to,
-        "Por favor elige:\n1. INVENTARIO DEL DIA\n2. GAMA MEDIA\n3. GAMA ALTA"
+        "Por favor elige:\n1. INVENTARIO GAMA BAJA\n2. INVENTARIO GAMA ALTA\n3. BUSCAR MODELO"
       );
     }
   }
 
-  async handleMenuOption(to, option) {
-    let response;
-    let fileUrl;
+  async handleMenuOption(to, option, messageId) {
+    if (option.includes("buscar modelo")) {
+      await whatsappService.sendMessage(to, "Escriba el modelo que desea buscar", messageId);
+    } else if (option.includes("gama baja")) {
+      await this.generateImageAndSend(to, 'INVENTARIO GAMA BAJA');
+    } else if (option.includes("gama alta")) {
+      await this.generateImageAndSend(to, 'INVENTARIO GAMA ALTA');
+    } else {
+      await whatsappService.sendMessage(to, "Opción no reconocida.");
+    }
+  }
 
+  async handleUserText(to, message, messageId) {
+    // Aquí asumimos que si escribió algo que no sea saludo, es búsqueda
+    await this.generateImageAndSend(to, message.toUpperCase());
+  }
+
+  async generateImageAndSend(to, opcion) {
     try {
-      // Genera el archivo Excel filtrado según la opción
-      const relativePath = await generarExcelFiltrado(option.toUpperCase()); // Asegúrate de que este método regrese la ruta relativa
-      fileUrl = `http://localhost:3000${relativePath}`;  // URL pública
-
-      response = `Aquí está el reporte solicitado: ${option}`;
-      await whatsappService.sendMessage(to, response);  // Enviar mensaje de texto
-      await whatsappService.sendDocument(to, fileUrl);  // Enviar documento
-
+      const scriptPath = path.resolve('python/generar_imagen.py');
+      const command = `python "${scriptPath}" "${opcion}"`;
+  
+      exec(command, async (error, stdout, stderr) => {
+        if (error) {
+          console.error(`Error ejecutando script: ${error.message}`);
+          console.error(`Stderr: ${stderr}`);
+          await whatsappService.sendMessage(to, "Ocurrió un error generando la imagen.");
+          return;
+        }
+  
+        // Paso 1: Capturar la salida del script Python
+        const output = stdout.toString().trim();
+        console.log(`Salida del script Python: "${output}"`);
+  
+        // Paso 2: Verificar que la salida es una ruta válida
+        if (!output || !fs.existsSync(output)) {
+          console.error('El script no devolvió una ruta válida o el archivo no existe');
+          console.error('Ruta recibida:', output);
+          await whatsappService.sendMessage(to, "Error: No se pudo generar la imagen.");
+          return;
+        }
+  
+        // Paso 3: Construir la URL pública (ajusta según tu estructura)
+        const fileName = path.basename(output);
+        const fileUrl = `${config.BASE_URL}/imagenes/${fileName}`;
+        console.log(`Intentando enviar imagen desde: ${fileUrl}`);
+  
+        // Paso 4: Verificar accesibilidad (opcional pero recomendado)
+        try {
+          const testResponse = await axios.head(fileUrl);
+          console.log(`Test de acceso a imagen exitoso (HTTP ${testResponse.status})`);
+        } catch (testError) {
+          console.error('La imagen no es accesible públicamente:', testError.message);
+          await whatsappService.sendMessage(to, "Error: La imagen no está disponible.");
+          return;
+        }
+  
+        // Paso 5: Enviar la imagen
+        await whatsappService.sendImage(to, fileUrl);
+      });
     } catch (err) {
-      console.error('Error generando archivo:', err);
-      response = "Ocurrió un error generando tu archivo. Intenta más tarde.";
-      await whatsappService.sendMessage(to, response);
+      console.error('Error en generateImageAndSend:', err);
+      await whatsappService.sendMessage(to, "Ocurrió un error interno.");
     }
   }
 }
