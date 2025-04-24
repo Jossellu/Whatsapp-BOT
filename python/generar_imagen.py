@@ -4,6 +4,7 @@ from matplotlib import colors
 import os
 import sys
 from datetime import datetime
+import re
 
 # Configuración inicial
 os.makedirs('C:/WhatsApp BOT/public/imagenes', exist_ok=True)
@@ -45,10 +46,24 @@ def generar_imagen(opcion, mensaje_usuario=None):
         nombre_imagen = 'gama_alta'
 
     else:
-        palabras = opcion.lower().split()
-        # Filtrar filas donde alguna palabra esté en la columna 'Descripción de producto'
-        filtrado = df[df['Descripción de producto'].str.lower().apply(lambda x: all(p in x for p in palabras))]
-        titulo = f"Búsqueda: {' '.join(palabras)}"
+        stopwords = set([
+        'muestrame', 'quiero', 'color', 'de', 'con', 'un', 'una', 'el', 'la', 'los', 'las', 
+        'me', 'por','gb','GB','ram','RAM','favor', 'busca', 'mostrar','equipos', 'enseñame', 'ver',
+        'en', 'modelo','modelos', 'dame','almacenamiento','memoria','capacidad','equipo'
+        ])
+
+        def limpiar_opcion(opcion):
+            # Deja solo letras y números
+            palabras = re.findall(r'\w+', opcion.lower())
+            # Quita las palabras irrelevantes
+            keywords = [p for p in palabras if p not in stopwords]
+            return keywords
+
+        # Filtrado: solo incluye filas que contengan TODAS las palabras clave
+        palabras_clave = limpiar_opcion(opcion)
+        filtrado = df[df['Descripción de producto'].str.lower().apply(
+            lambda x: all(p in x for p in palabras_clave)
+        )]
         nombre_imagen = 'busqueda_modelo'
     
     # Reducir columnas si es muy largo
