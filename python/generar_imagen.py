@@ -20,9 +20,7 @@ def limpiar_precio(valor):
         return None
 
 # Función principal para generar imágenes
-def generar_imagen(opcion, mensaje_usuario=None):
-
-    #print(f"Generando imagen para la opción: {opcion}")
+def generar_imagen(opcion, mensaje_usuario=None, remove_last_column=False): # 👈 nuevo parámetro
 
     # Leer el archivo
     df = pd.read_excel(EXCEL_PATH)
@@ -36,7 +34,7 @@ def generar_imagen(opcion, mensaje_usuario=None):
     # Filtro por opción
     if opcion == 'INVENTARIO GAMA BAJA':
         filtrado = df[df['$ Público'] < 7000]
-        filtrado.sort_values(by='$ Público',inplace=True)
+        filtrado.sort_values(by='$ Público', inplace=True)
         titulo = 'Inventario Gama Baja'
         nombre_imagen = 'gama_baja'
 
@@ -53,82 +51,71 @@ def generar_imagen(opcion, mensaje_usuario=None):
         ])
 
         def limpiar_opcion(opcion):
-            # Deja solo letras y números
             palabras = re.findall(r'\w+', opcion.lower())
-            # Quita las palabras irrelevantes
             keywords = [p for p in palabras if p not in stopwords]
             return keywords
 
-        # Filtrado: solo incluye filas que contengan TODAS las palabras clave
         palabras_clave = limpiar_opcion(opcion)
         filtrado = df[df['Descripción de producto'].str.lower().apply(
             lambda x: all(p in x for p in palabras_clave)
         )]
         nombre_imagen = 'busqueda_modelo'
     
-    # Reducir columnas si es muy largo
-    columnas_a_mostrar = ['Descripción de producto', '$ Público','$ Distri.', 'Dispo.']
-    filtrado = filtrado[columnas_a_mostrar].head(60) 
+    # Columnas a mostrar
+    columnas_a_mostrar = ['Descripción de producto', '$ Público', '$ Distri.', 'Dispo.']
+
+    # 👇 Aquí eliminamos la última columna si es necesario
+    if remove_last_column and len(columnas_a_mostrar) > 0:
+        columnas_a_mostrar = columnas_a_mostrar[:-1]
+
+    filtrado = filtrado[columnas_a_mostrar].head(60)
 
     if filtrado.empty:
         print("No se encontraron datos para la opción seleccionada.")
         return None
 
-
-    # Configuración de la figura con más espacio superior
+    # Configuración de la figura
     fig, ax = plt.subplots(figsize=(12, 8))
     ax.axis('tight')
     ax.axis('off')
 
-    # Crear la tabla con ajuste automático de columnas
     tabla = ax.table(
         cellText=filtrado.values,
         colLabels=filtrado.columns,
         cellLoc='center',
         loc='center',
-        colWidths=[0.6, 0.2, 0.2,0.2]  # Más ancho para la descripción
+        colWidths=[0.6] + [0.2] * (len(filtrado.columns) - 1)  # Ajuste dinámico de columnas
     )
 
-    # Configurar estilo de la tabla
+    # Estilos de tabla
     tabla.auto_set_font_size(False)
     tabla.set_fontsize(15)
 
-    # Definir colores mejorados
-    color_encabezados = '#2E5F7D'  # Azul más oscuro
-    color_filas_pares = '#F5F9FC'  # Azul muy claro
+    color_encabezados = '#2E5F7D'
+    color_filas_pares = '#F5F9FC'
     color_filas_impares = 'white'
 
-    # Aplicar estilos
     for (i, j), cell in tabla.get_celld().items():
         cell.set_edgecolor('lightgray')
-        if i == 0:  # Encabezados
+        if i == 0:
             cell.set_facecolor(color_encabezados)
             cell.set_text_props(color='white', weight='bold', size=14)
-        elif i > 0:  # Datos
-            cell.set_facecolor(color_filas_pares if i%2==0 else color_filas_impares)
-            if j == 0:  # Solo para columna de descripción
-                cell.set_text_props(ha='left')  # Alineación izquierda
+        elif i > 0:
+            cell.set_facecolor(color_filas_pares if i % 2 == 0 else color_filas_impares)
+            if j == 0:
+                cell.set_text_props(ha='left')
                 cell._text.set_horizontalalignment('left')
-                cell._text.set_position((0.02, 0))  # Pequeño margen izquierdo
+                cell._text.set_position((0.02, 0))
 
-    # Ajustar escala y layout
-    tabla.auto_set_column_width([0])  # Autoajuste para la columna de descripción
-    tabla.scale(1, 1.8)  # Más espacio vertical
+    tabla.auto_set_column_width([0])
+    tabla.scale(1, 1.8)
 
+    fig.tight_layout(rect=[0, 0, 1, 0.93])
 
-
-    # Ajustar layout para evitar corte de texto
-    fig.tight_layout(rect=[0, 0, 1, 0.93])  # Rect: [left, bottom, right, top]
-
-
-    # Generar timestamp para evitar sobrescribir
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    
-    # Crear el nombre de la imagen con el timestamp
     nombre_imagen = f"{nombre_imagen}_{timestamp}.png"
-    # Guardar imagen
-    ruta_imagen = os.path.join(IMAGENES_DIR, nombre_imagen)
-    ruta_imagen = ruta_imagen.replace('\\', '/')
+    ruta_imagen = os.path.join(IMAGENES_DIR, nombre_imagen).replace('\\', '/')
+
     try:
         plt.savefig(ruta_imagen, bbox_inches='tight')
         plt.close()
@@ -140,10 +127,12 @@ def generar_imagen(opcion, mensaje_usuario=None):
 
 # Si el script es ejecutado directamente
 if __name__ == "__main__":
-    # Obtener la opción de los argumentos
     if len(sys.argv) < 2:
         print("Por favor, proporcione la opción a generar (INVENTARIO GAMA BAJA, INVENTARIO GAMA ALTA, o BUSCAR MODELO)")
     else:
         opcion = sys.argv[1]
         mensaje_usuario = sys.argv[2] if len(sys.argv) > 2 else None
-        generar_imagen(opcion, mensaje_usuario)
+        # 👇 Leer el parámetro opcional remove_last_column (default a False)
+        remove_last_column = sys.argv[3].lower() == 'true' if len(sys.argv) > 3 else False
+        generar_imagen(opcion, mensaje_usuario, remove_last_column)
+

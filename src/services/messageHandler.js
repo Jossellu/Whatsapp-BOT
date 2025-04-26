@@ -6,7 +6,7 @@ import fs from 'fs';
 import axios from 'axios';
 
 class MessageHandler {
-  async handleIncomingMessage(message, senderInfo) {
+  async handleIncomingMessage(message, senderInfo, shouldRemoveLastColumn = false) { // 👈 Aquí agregamos el nuevo parámetro
     const fromNumber = message.from.slice(0, 2) + message.from.slice(3);
 
     if (message?.type === "text") {
@@ -16,13 +16,13 @@ class MessageHandler {
         await this.sendWelcomeMessage(fromNumber, message.id, senderInfo);
         await this.sendWelcomeMenu(fromNumber);
       } else {
-        await this.handleUserText(fromNumber, incomingMessage, message.id);
+        await this.handleUserText(fromNumber, incomingMessage, message.id, shouldRemoveLastColumn); // 👈 Lo pasamos aquí
       }
 
       await whatsappService.markAsRead(message.id);
     } else if (message?.type === 'interactive') {
       const option = message?.interactive?.button_reply?.title.toLowerCase().trim();
-      await this.handleMenuOption(fromNumber, option, message.id);
+      await this.handleMenuOption(fromNumber, option, message.id, shouldRemoveLastColumn); // 👈 También aquí
       await whatsappService.markAsRead(message.id);
     }
   }
@@ -33,7 +33,7 @@ class MessageHandler {
   }
 
   async getSenderName(senderInfo) {
-    return senderInfo.profile?.name || senderInfo.wa_id || "Usuario TII"
+    return senderInfo.profile?.name || senderInfo.wa_id || "Usuario TII";
   }
 
   async sendWelcomeMessage(to, messageId, senderInfo) {
@@ -60,28 +60,27 @@ class MessageHandler {
     }
   }
 
-  async handleMenuOption(to, option, messageId) {
+  async handleMenuOption(to, option, messageId, shouldRemoveLastColumn = false) { // 👈 Ahora recibe el flag
     if (option.includes("buscar modelo")) {
       await whatsappService.sendMessage(to, "Escriba el modelo que desea buscar", messageId);
     } else if (option.includes("gama baja")) {
-      await this.generateImageAndSend(to, 'INVENTARIO GAMA BAJA');
+      await this.generateImageAndSend(to, 'INVENTARIO GAMA BAJA', shouldRemoveLastColumn);
     } else if (option.includes("gama alta")) {
-      await this.generateImageAndSend(to, 'INVENTARIO GAMA ALTA');
+      await this.generateImageAndSend(to, 'INVENTARIO GAMA ALTA', shouldRemoveLastColumn);
     } else {
       await whatsappService.sendMessage(to, "Opción no reconocida.");
     }
   }
 
-  async handleUserText(to, message, messageId) {
-    // Aquí asumimos que si escribió algo que no sea saludo, es búsqueda
-    await this.generateImageAndSend(to, message.toUpperCase());
+  async handleUserText(to, message, messageId, shouldRemoveLastColumn = false) { // 👈 También aquí
+    await this.generateImageAndSend(to, message.toUpperCase(), shouldRemoveLastColumn);
   }
 
-  async generateImageAndSend(to, opcion) {
+  async generateImageAndSend(to, opcion, shouldRemoveLastColumn = false) { // 👈 Y también aquí
     try {
       const scriptPath = path.resolve('python/generar_imagen.py');
-      const command = `python "${scriptPath}" "${opcion}"`;
-  
+      const command = `python "${scriptPath}" "${opcion}" "${shouldRemoveLastColumn}"`; // 👈 Enviamos el parámetro al script
+
       exec(command, async (error, stdout, stderr) => {
         if (error) {
           console.error(`Error ejecutando script: ${error.message}`);
@@ -89,25 +88,22 @@ class MessageHandler {
           await whatsappService.sendMessage(to, "Ocurrió un error generando la imagen.");
           return;
         }
-  
-        // Paso 1: Capturar la salida del script Python
+
+        // Capturar la salida del script Python
         const output = stdout.toString().trim();
         console.log(`Salida del script Python: "${output}"`);
-  
-        // Paso 2: Verificar que la salida es una ruta válida
+
         if (!output || !fs.existsSync(output)) {
           console.error('El script no devolvió una ruta válida o el archivo no existe');
           console.error('Ruta recibida:', output);
           await whatsappService.sendMessage(to, "Error: No se pudo generar la imagen.");
           return;
         }
-  
-        // Paso 3: Construir la URL pública (ajusta según tu estructura)
+
         const fileName = path.basename(output);
         const fileUrl = `${config.BASE_URL}/imagenes/${fileName}`;
         console.log(`Intentando enviar imagen desde: ${fileUrl}`);
-  
-        // Paso 4: Verificar accesibilidad (opcional pero recomendado)
+
         try {
           const testResponse = await axios.head(fileUrl);
           console.log(`Test de acceso a imagen exitoso (HTTP ${testResponse.status})`);
@@ -116,8 +112,7 @@ class MessageHandler {
           await whatsappService.sendMessage(to, "Error: La imagen no está disponible.");
           return;
         }
-  
-        // Paso 5: Enviar la imagen
+
         await whatsappService.sendImage(to, fileUrl);
       });
     } catch (err) {
@@ -128,3 +123,4 @@ class MessageHandler {
 }
 
 export default new MessageHandler();
+
