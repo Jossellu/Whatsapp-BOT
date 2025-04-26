@@ -45,9 +45,9 @@ def generar_imagen(opcion, mensaje_usuario=None, remove_last_column=False): # �
 
     else:
         stopwords = set([
-        'muestrame', 'quiero', 'color', 'de', 'con', 'un', 'una', 'el', 'la', 'los', 'las', 
+        'muestrame', 'quiero', 'color', 'de', 'con', 'un', 'una', 'el', 'la', 'los', 'las','Enséñame', 
         'me', 'por','gb','GB','ram','RAM','favor', 'busca', 'mostrar','equipos', 'enseñame', 'ver',
-        'en', 'modelo','modelos', 'dame','almacenamiento','memoria','capacidad','equipo'
+        'en', 'modelo','modelos', 'dame','almacenamiento','memoria','capacidad','equipo', 'Muéstrame','muéstrame','enséñame'
         ])
 
         def limpiar_opcion(opcion):
@@ -73,44 +73,60 @@ def generar_imagen(opcion, mensaje_usuario=None, remove_last_column=False): # �
     if filtrado.empty:
         print("No se encontraron datos para la opción seleccionada.")
         return None
-
     # Configuración de la figura
-    fig, ax = plt.subplots(figsize=(12, 8))
+    fig, ax = plt.subplots(figsize=(14, 10))
     ax.axis('tight')
     ax.axis('off')
 
+    # Colores mejorados
+    color_fondo_tabla = '#f0f8ff'        # Azul muy clarito de fondo
+    color_encabezados = '#1e3d59'        # Azul oscuro elegante
+    color_filas_pares = '#e8f0fe'        # Azul pastel para filas pares
+    color_filas_impares = '#ffffff'      # Blanco para filas impares
+    color_texto_precio = '#d7263d'       # Rojo llamativo para precios
+
+    # Crear la tabla
     tabla = ax.table(
         cellText=filtrado.values,
         colLabels=filtrado.columns,
         cellLoc='center',
         loc='center',
-        colWidths=[0.6] + [0.2] * (len(filtrado.columns) - 1)  # Ajuste dinámico de columnas
+        colWidths=[0.55] + [0.2] * (len(filtrado.columns) - 1)  # Ajuste dinámico
     )
 
-    # Estilos de tabla
+    # Estilos de la tabla
     tabla.auto_set_font_size(False)
-    tabla.set_fontsize(15)
+    tabla.set_fontsize(16)  # Letras un poquito más grandes para impacto
 
-    color_encabezados = '#2E5F7D'
-    color_filas_pares = '#F5F9FC'
-    color_filas_impares = 'white'
-
+    # Aplicar estilos a celdas
     for (i, j), cell in tabla.get_celld().items():
-        cell.set_edgecolor('lightgray')
+        cell.set_edgecolor('gray')
         if i == 0:
             cell.set_facecolor(color_encabezados)
-            cell.set_text_props(color='white', weight='bold', size=14)
+            cell.set_text_props(color='white', weight='bold', size=15)
         elif i > 0:
+            # Alternar colores en filas
             cell.set_facecolor(color_filas_pares if i % 2 == 0 else color_filas_impares)
+            
+            # Alinear a la izquierda la descripción
             if j == 0:
-                cell.set_text_props(ha='left')
+                cell.set_text_props(ha='left', weight='bold')
                 cell._text.set_horizontalalignment('left')
                 cell._text.set_position((0.02, 0))
+            
+            # Resaltar el precio público con color rojo
+            if filtrado.columns[j] == '$ Distri.':
+                cell.set_text_props(color=color_texto_precio, weight='bold')
 
+    # Ajustar columnas automáticamente
     tabla.auto_set_column_width([0])
-    tabla.scale(1, 1.8)
+    tabla.scale(1, 2)  # Más alto para dar más aire a las filas
 
-    fig.tight_layout(rect=[0, 0, 1, 0.93])
+    # Cambiar fondo general de la figura
+    fig.patch.set_facecolor(color_fondo_tabla)
+
+    # Ajustar layout
+    fig.tight_layout(rect=[0, 0, 1, 0.95])  # Un poco más de espacio arriba
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     nombre_imagen = f"{nombre_imagen}_{timestamp}.png"
