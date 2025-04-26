@@ -79,7 +79,7 @@ class MessageHandler {
   async generateImageAndSend(to, opcion, shouldRemoveLastColumn = false) { // 👈 Y también aquí
     try {
       const scriptPath = path.resolve('python/generar_imagen.py');
-      const command = `python "${scriptPath}" "${opcion}" "${shouldRemoveLastColumn}"`; // 👈 Enviamos el parámetro al script
+      const command = `python "${scriptPath}" "${opcion}" "" "${shouldRemoveLastColumn}"`;// 👈 Enviamos el parámetro al script
 
       exec(command, async (error, stdout, stderr) => {
         if (error) {

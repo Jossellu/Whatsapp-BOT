@@ -73,9 +73,15 @@ def generar_imagen(opcion, mensaje_usuario=None, remove_last_column=False): # 馃
     if filtrado.empty:
         print("No se encontraron datos para la opci贸n seleccionada.")
         return None
-    # Configuraci贸n de la figura
-    fig, ax = plt.subplots(figsize=(14, 10))
-    ax.axis('tight')
+    # Configuraci贸n din谩mica
+    num_rows = len(filtrado)
+    max_desc_width = max([len(str(x)) for x in filtrado['Descripci贸n de producto']]) if 'Descripci贸n de producto' in filtrado.columns else 50
+
+    # Ajustes de tama帽o (enfocados en las columnas de precios)
+    fig_width = max(12, max_desc_width * 0.12 + 6)  # M谩s ancho para acomodar precios
+    fig_height = max(6, num_rows * 0.4)
+
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
     ax.axis('off')
 
     # Colores mejorados
@@ -96,7 +102,7 @@ def generar_imagen(opcion, mensaje_usuario=None, remove_last_column=False): # 馃
 
     # Estilos de la tabla
     tabla.auto_set_font_size(False)
-    tabla.set_fontsize(16)  # Letras un poquito m谩s grandes para impacto
+    tabla.set_fontsize(15)  # Letras un poquito m谩s grandes para impacto
 
     # Aplicar estilos a celdas
     for (i, j), cell in tabla.get_celld().items():
