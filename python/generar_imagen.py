@@ -69,6 +69,7 @@ def generar_imagen(opcion, mensaje_usuario=None, remove_last_column=False): # ü
         columnas_a_mostrar = columnas_a_mostrar[:-1]
 
     filtrado = filtrado[columnas_a_mostrar].head(60)
+    filtrado = filtrado.rename(columns={'$ Distri.': '$Sub Distri'})
 
     if filtrado.empty:
         print("No se encontraron datos para la opci√≥n seleccionada.")
@@ -121,7 +122,7 @@ def generar_imagen(opcion, mensaje_usuario=None, remove_last_column=False): # ü
                 cell._text.set_position((0.02, 0))
             
             # Resaltar el precio p√∫blico con color rojo
-            if filtrado.columns[j] == '$ Distri.':
+            if filtrado.columns[j] == '$Sub Distri':
                 cell.set_text_props(color=color_texto_precio, weight='bold')
 
     # Ajustar columnas autom√°ticamente
