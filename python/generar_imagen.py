@@ -56,11 +56,9 @@ def generar_imagen(opcion, mensaje_usuario=None, remove_last_column=False): # �
             return keywords
 
         palabras_clave = limpiar_opcion(opcion)
-        filtrado = df[df['Descripción de producto'].str.lower().apply(
-            lambda x: all(p in x for p in palabras_clave)
-        )]
+        patron = r'.*' + '.*'.join(palabras_clave.split()) + r'.*'
+        filtrado = df[df['Descripción de producto'].str.contains(patron, case=False, regex=True)]
         nombre_imagen = 'busqueda_modelo'
-    
     # Columnas a mostrar
     columnas_a_mostrar = ['Descripción de producto', '$ Público', '$ Distri.', 'Dispo.']
 
