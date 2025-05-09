@@ -61,8 +61,7 @@ def generar_imagen(opcion, mensaje_usuario=None, remove_last_column=False): # �
                 return df
             
             # Crear patrón regex para búsqueda flexible
-            patron = r'.*' + '.*'.join(palabras_clave) + r'.*'
-            
+            patron = r'^(?=.*\b' + r'\b)(?=.*\b'.join(palabras_clave) + r'\b).*$'
             try:
                 # Filtrar con regex (coincidencias parciales)
                 return df[df['Descripción de producto'].str.contains(patron, case=False, regex=True, na=False)]
