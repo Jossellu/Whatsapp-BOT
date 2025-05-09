@@ -96,7 +96,7 @@ class MessageHandler {
         if (!output || !fs.existsSync(output)) {
           console.error('El script no devolvió una ruta válida o el archivo no existe');
           console.error('Ruta recibida:', output);
-          await whatsappService.sendMessage(to, "Error: No se pudo generar la imagen.");
+          await whatsappService.sendMessage(to, "No se encontraron coincidencias.");
           return;
         }
 
