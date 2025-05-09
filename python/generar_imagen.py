@@ -54,7 +54,7 @@ def generar_imagen(opcion, mensaje_usuario=None, remove_last_column=False): # �
             palabras = re.findall(r'\w+', opcion.lower())
             return [p for p in palabras if p not in stopwords]
 
-        def filtrar_equipos(df, opcion, columna='Descripción de producto'):
+        def filtrar_equipos(df, opcion,):
             palabras_clave = limpiar_opcion(opcion)
             
             if not palabras_clave:  # Si no hay palabras clave después de limpiar
@@ -65,13 +65,12 @@ def generar_imagen(opcion, mensaje_usuario=None, remove_last_column=False): # �
             
             try:
                 # Filtrar con regex (coincidencias parciales)
-                return df[df[columna].str.contains(patron, case=False, regex=True, na=False)]
+                return df[df['Descripción de producto'].str.contains(patron, case=False, regex=True, na=False)]
             except Exception as e:
                 print(f"Error al filtrar: {e}")
                 return df.iloc[0:0]  # Devuelve dataframe vacío en caso de error
 
-        # Uso:
-        filtrado = filtrar_equipos(df, "muéstrame equipos Dell con 16GB RAM")
+        filtrado = filtrar_equipos(df=df,opcion=opcion)
         nombre_imagen = 'busqueda_modelo'
     # Columnas a mostrar
     columnas_a_mostrar = ['Descripción de producto', '$ Público', '$ Distri.', 'Dispo.']
